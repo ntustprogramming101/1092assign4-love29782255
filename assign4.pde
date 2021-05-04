@@ -1,4 +1,4 @@
-PImage title, gameover, startNormal, startHovered, restartNormal, restartHovered; //<>// //<>//
+PImage title, gameover, startNormal, startHovered, restartNormal, restartHovered; //<>// //<>// //<>//
 PImage groundhogIdle, groundhogLeft, groundhogRight, groundhogDown;
 PImage bg, life, cabbage, stone1, stone2, soilEmpty;
 PImage soldier;
@@ -24,6 +24,7 @@ final int START_BUTTON_Y = 360;
 float[] cabbageX, cabbageY, soldierX, soldierY;
 float soldierSpeed = 2f;
 int ranFloor, ranPos;
+int lifeX = 10;
 
 int[] holeNum = new int [24];
 int[][] ranHolePos ; 
@@ -124,7 +125,7 @@ void setup() {
   for (int j = 0; j < 6; j++) {
     ranFloor = floor(random(4));
     ranPos = floor(random(9));
-    soldierY[j] = j*4 + ranFloor;
+    soldierY[j] = (j*4 + ranFloor)*block;
     soldierX[j] = ranPos* block;
   }
   //Vege
@@ -133,10 +134,11 @@ void setup() {
   for (int j = 0; j < 6; j++) {
     ranFloor = floor(random(4));
     ranPos = floor(random(9));
-    cabbageY[j] = j*4 + ranFloor;
+    cabbageY[j] = (j*4 + ranFloor)*block;
     cabbageX[j] = ranPos* block;
   }
 }
+
 
 void draw() {
 
@@ -226,19 +228,41 @@ void draw() {
       }
     }
 
-
-    // Cabbages
-    // >Remember to check if playerHealth is smaller than PLAYER_MAX_HEALTH!
+    /////////////////life, vege, soldier
     for (int j = 0; j < 6; j++) {
-      image(cabbage, cabbageX[j], block*cabbageY[j]);
-    }
-
-    //Soldier
-    for (int j = 0; j < 6; j++) {
-      image(soldier, soldierX[j] - block, block*soldierY[j]);
+      //Soldier
+      image(soldier, soldierX[j] - block, soldierY[j]);
       soldierX[j] += 2.0;
       soldierX[j] %= block*9 ;
+
+      //life
+      //if touch soldier
+      if (playerX < soldierX[j] && playerX + block > soldierX[j] - block &&
+        playerY < soldierY[j] + block && playerY + block > soldierY[j]) {
+        playerHealth = playerHealth - 1;
+        lifeMove(playerHealth);
+        playerX = PLAYER_INIT_X;
+        playerY = PLAYER_INIT_Y;
+        playerCol = (int)(playerX / SOIL_SIZE);
+        playerRow = (int)(playerY / SOIL_SIZE);
+        downState = false;
+        leftState = false;
+        rightState = false;
+      } 
+      // Cabbages
+      // >Remember to check if playerHealth is smaller than PLAYER_MAX_HEALTH!
+      if (playerX < cabbageX[j] + block && playerX + block > cabbageX[j] &&
+        playerY < cabbageY[j] + block && playerY + block > cabbageY[j]) {
+        if (playerHealth < PLAYER_MAX_HEALTH) playerHealth = playerHealth + 1;
+        cabbageX[j] = width;
+        cabbageY[j] = height;
+        lifeMove(playerHealth);
+      } else { //nothing
+        lifeMove(playerHealth);
+        image(cabbage, cabbageX[j], cabbageY[j] );
+      }
     }
+
 
 
     // Groundhog
@@ -252,8 +276,10 @@ void draw() {
       if (playerRow != 23 && soilHealth[playerCol][playerRow+1] == 0) {
         do {
           groundhogDisplay = groundhogDown;
+          //playerMoveDirection = DOWN;
+          //playerMoveTimer = playerMoveDuration;
           playerY = (1f - float(playerMoveTimer) / playerMoveDuration + playerRow) * SOIL_SIZE;
-          playerRow++;
+          if (1f - float(playerMoveTimer) / playerMoveDuration >= 1)playerRow++;
         } while (playerRow != 23 && soilHealth[playerCol][playerRow+1] == 0);
       }
       // Check if "player is NOT at the bottom AND the soil under the player is empty"
@@ -378,6 +404,8 @@ void draw() {
 
     popMatrix();
 
+    if (playerHealth<=0) gameState = GAME_OVER;
+
     // Health UI
 
     break;
@@ -392,9 +420,7 @@ void draw() {
 
       image(restartHovered, START_BUTTON_X, START_BUTTON_Y);
       if (mousePressed) {
-        gameState = GAME_RUN;
-        mousePressed = false;
-
+        
         // Initialize player
         playerX = PLAYER_INIT_X;
         playerY = PLAYER_INIT_Y;
@@ -402,6 +428,7 @@ void draw() {
         playerRow = (int)(playerY / SOIL_SIZE);
         playerMoveTimer = 0;
         playerHealth = 2;
+        
 
         // Initialize soilHealth
         soilHealth = new int[SOIL_COL_COUNT][SOIL_ROW_COUNT];
@@ -413,14 +440,66 @@ void draw() {
         }
 
         // Initialize soidiers and their position
-
         // Initialize cabbages and their position
+        // random Hole
+        for (int j = 1; j < 24; j++) {
+          int lastHoleX = -1;
+          holeNum[j] = floor(random(1, 3));
+          for (int k = 0; k< holeNum[j]; k ++) {
+            ranHolePos = new int [holeNum[j]][24];
+            ranHolePos[k][j] = floor(random(8));
+            if (ranHolePos[k][j]  == lastHoleX) k--;
+            else {
+              soilHealth[ranHolePos[k][j]][j] = 0 ;
+              lastHoleX = ranHolePos[k][j] ;
+            }
+          }
+        }
+
+        //Soldier
+        soldierX = new float [6];
+        soldierY = new float [6];
+        for (int j = 0; j < 6; j++) {
+          ranFloor = floor(random(4));
+          ranPos = floor(random(9));
+          soldierY[j] = (j*4 + ranFloor)*block;
+          soldierX[j] = ranPos* block;
+        }
+        //Vege
+        cabbageX = new float [6];
+        cabbageY = new float [6];
+        for (int j = 0; j < 6; j++) {
+          ranFloor = floor(random(4));
+          ranPos = floor(random(9));
+          cabbageY[j] = (j*4 + ranFloor)*block;
+          cabbageX[j] = ranPos* block;
+        }
+        gameState = GAME_RUN;
+        mousePressed = false;
       }
     } else {
 
       image(restartNormal, START_BUTTON_X, START_BUTTON_Y);
     }
     break;
+  }
+}
+
+void lifeMove(int playerHealth) {
+  for (int A = 0; A <= playerHealth-1; A+=1) {
+    if (playerMoveTimer > 0) {
+      if (playerMoveTimer == 0) {
+        if (playerRow <= 18) image(life, lifeX + 70*A, 10 + block*(playerRow-1));
+        else image(life, lifeX + 70*A, 10 + block*18);
+      } else {
+        if (playerRow <= 18) image(life, lifeX + 70*A, 10 + playerY- block);
+        else image(life, lifeX + 70*A, 10 + block*18);
+      }
+    }
+    if (playerMoveTimer == 0) {
+      if (playerRow <= 18) image(life, lifeX + 70*A, 10 + block*(playerRow-1));
+      else image(life, lifeX + 70*A, 10 + block*18);
+    }
   }
 }
 
